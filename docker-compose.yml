@@ -1,0 +1,86 @@
+services:
+  # --- Base de datos (MySQL) ---
+  db:
+    image: mysql:8.0
+    container_name: wenka_db
+    environment:
+      MYSQL_ROOT_PASSWORD: wenka_secret
+      MYSQL_DATABASE: wenka_db
+      MYSQL_USER: wenka_user
+      MYSQL_PASSWORD: wenka_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persistencia de datos (para que no se borren al apagar)
+      - db_data:/var/lib/mysql
+      # Carga de scripts SQL de inicialización (Orden alfabético importa)
+      # 1. Primero creamos las tablas
+      - ./backend/db/TablasWenka.sql:/docker-entrypoint-initdb.d/01-TablasWenka.sql
+      # 2. Luego insertamos los datos de prueba
+      - ./backend/db/datosPrueba.sql:/docker-entrypoint-initdb.d/02-datosPrueba.sql
+    networks:
+      - wenka-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pwenka_secret"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Backend (Go) ---
+  backend:
+    build: ./backend
+    container_name: wenka_backend
+    ports:
+      - "8080:8080"
+    environment:
+
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: wenka_user
+      DB_PASSWORD: wenka_secret
+      DB_NAME: wenka_db
+      # Configuración adicional
+      JWT_SECRET: secreto-clinica-wenka-dev
+      ENVIRONMENT: development
+      # Permitir que el frontend (que corre en el navegador del cliente) acceda
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - wenka-network
+    volumes:
+      # Hot-reload manual: mapeamos la carpeta local al contenedor
+      - ./backend:/app
+    restart: unless-stopped
+
+  # --- Frontend (Next.js) ---
+  frontend:
+    build: ./frontend
+    container_name: wenka_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # URL del backend para llamadas Server-Side (dentro de la red docker)
+      BACKEND_URL_INTERNAL: http://backend:8080
+      # URL del backend para llamadas Client-Side (navegador)
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:8080
+      NEXT_TELEMETRY_DISABLED: 1
+    depends_on:
+      - backend
+    networks:
+      - wenka-network
+    volumes:
+      # Sincronización para ver cambios en tiempo real mientras programas
+      - ./frontend:/app
+      # Evitar que el node_modules del contenedor se sobrescriba con el local (vacío o incompatible)
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+
+networks:
+  wenka-network:
+    driver: bridge
+
+volumes:
+  db_data:

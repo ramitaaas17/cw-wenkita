@@ -1,8 +1,7 @@
-// frontend/src/hooks/useAppointments.ts
 
 import { useState, useCallback } from 'react';
-import type { Appointment } from '@/src/types';
-import { API_ENDPOINTS, fetchWithAuth } from '@/src/lib/api';
+import { appointmentService } from '@/src/services/appointmentService';
+import type { Appointment, CreateAppointmentRequest } from '@/src/types';
 
 export function useAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -13,85 +12,54 @@ export function useAppointments() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.appointments.list);
-
-      if (!response.ok) {
-        throw new Error('Error al cargar las citas');
-      }
-
-      const data = await response.json();
+      const data = await appointmentService.getAppointments();
       setAppointments(data || []);
     } catch (err: any) {
-      console.error('Error loading appointments:', err);
-      setError(err.message || 'No se pudieron cargar las citas');
+      const errorMessage = err instanceof Error ? err.message : 'No se pudieron cargar las citas';
+      setError(errorMessage);
       setAppointments([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const createAppointment = useCallback(async (appointmentData: Omit<Appointment, 'id' | 'created_at'>) => {
+  const createAppointment = useCallback(async (appointmentData: CreateAppointmentRequest) => {
     setError('');
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.appointments.create, {
-        method: 'POST',
-        body: JSON.stringify(appointmentData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al crear la cita');
-      }
-
-      const data = await response.json();
+      const data = await appointmentService.createAppointment(appointmentData);
       setAppointments(prev => [...prev, data]);
       return data;
     } catch (err: any) {
-      console.error('Error creating appointment:', err);
-      setError(err.message || 'No se pudo crear la cita');
+      const errorMessage = err instanceof Error ? err.message : 'No se pudo crear la cita';
+      setError(errorMessage);
       throw err;
     }
   }, []);
 
-  const updateAppointment = useCallback(async (id: number, appointmentData: Partial<Appointment>) => {
+  const cancelAppointment = useCallback(async (id: number) => {
     setError('');
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.appointments.update(id), {
-        method: 'PUT',
-        body: JSON.stringify(appointmentData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al actualizar la cita');
-      }
-
-      const data = await response.json();
-      setAppointments(prev => prev.map(apt => apt.id === id ? data : apt));
-      return data;
-    } catch (err: any) {
-      console.error('Error updating appointment:', err);
-      setError(err.message || 'No se pudo actualizar la cita');
-      throw err;
-    }
-  }, []);
-
-  const deleteAppointment = useCallback(async (id: number) => {
-    setError('');
-    try {
-      const response = await fetchWithAuth(API_ENDPOINTS.appointments.delete(id), {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al eliminar la cita');
-      }
-
+      await appointmentService.cancelAppointment(id);
       setAppointments(prev => prev.filter(apt => apt.id !== id));
     } catch (err: any) {
-      console.error('Error deleting appointment:', err);
-      setError(err.message || 'No se pudo eliminar la cita');
+      const errorMessage = err instanceof Error ? err.message : 'No se pudo cancelar la cita';
+      setError(errorMessage);
+      throw err;
+    }
+  }, []);
+
+  const confirmAppointment = useCallback(async (id: number) => {
+    setError('');
+    try {
+      await appointmentService.confirmAppointment(id);
+      setAppointments(prev =>
+        prev.map(apt =>
+          apt.id === id ? { ...apt, estado: 'confirmada' } : apt
+        )
+      );
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : 'No se pudo confirmar la cita';
+      setError(errorMessage);
       throw err;
     }
   }, []);
@@ -102,7 +70,7 @@ export function useAppointments() {
     error,
     fetchAppointments,
     createAppointment,
-    updateAppointment,
-    deleteAppointment,
+    cancelAppointment,
+    confirmAppointment,
   };
 }

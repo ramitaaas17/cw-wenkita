@@ -8,11 +8,11 @@ import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import Calendar from '../../components/dashboard/Calendar';
 import CalendarModal from '../../components/dashboard/CalendarModal';
 import UpcomingAppointments from '../../components/dashboard/UpcomingAppointments';
+import { appointmentService } from '@/src/services/appointmentService';
 import type { Appointment } from '@/src/types';
-import { API_ENDPOINTS, fetchWithAuth } from '@/src/lib/api';
 
 export default function DashboardPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -23,25 +23,20 @@ export default function DashboardPage() {
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       router.push('/');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, authLoading, router]);
 
   const loadAppointments = async () => {
     try {
       setError('');
-      const response = await fetchWithAuth(API_ENDPOINTS.appointments.list);
-
-      if (!response.ok) {
-        throw new Error('Error al cargar las citas');
-      }
-
-      const data = await response.json();
-      setAppointments(data || []);
+      setIsLoadingAppointments(true);
+      const data = await appointmentService.getAppointments();
+      setAppointments(data);
     } catch (err) {
-      console.error('Error loading appointments:', err);
-      setError('No se pudieron cargar las citas. Por favor, intenta de nuevo.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al cargar las citas';
+      setError(errorMessage);
       setAppointments([]);
     } finally {
       setIsLoadingAppointments(false);
@@ -66,11 +61,7 @@ export default function DashboardPage() {
     setSelectedDateAppointments([]);
   };
 
-  const handleAppointmentCreated = () => {
-    loadAppointments();
-  };
-
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
         <div className="text-center">
@@ -90,17 +81,14 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Header con estadísticas */}
       <DashboardHeader />
 
-      {/* Contenido principal */}
       <div className="container mx-auto px-4 py-12">
-        {/* Mensaje de error */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center">
-              <svg className="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              <svg className="w-5 h-5 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="text-red-700 text-sm font-medium">{error}</p>
             </div>
@@ -116,7 +104,6 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Calendario - Ocupa 2 columnas */}
             <div className="lg:col-span-2">
               <Calendar 
                 onDateClick={handleDateClick}
@@ -124,7 +111,6 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Próximas Citas - Ocupa 1 columna */}
             <div className="lg:col-span-1">
               <div className="sticky top-28">
                 <UpcomingAppointments 
@@ -137,13 +123,12 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Modal para crear/ver citas */}
       <CalendarModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
         selectedDate={selectedDate}
         appointments={selectedDateAppointments}
-        onAppointmentCreated={handleAppointmentCreated}
+        onAppointmentCreated={loadAppointments}
       />
     </div>
   );

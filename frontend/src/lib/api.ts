@@ -1,4 +1,4 @@
-// frontend/src/lib/api.ts
+// lib/api.ts
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -14,14 +14,13 @@ export const API_ENDPOINTS = {
     list: `${API_BASE_URL}/api/appointments`,
     create: `${API_BASE_URL}/api/appointments`,
     getById: (id: number) => `${API_BASE_URL}/api/appointments/${id}`,
-    update: (id: number) => `${API_BASE_URL}/api/appointments/${id}`,
-    delete: (id: number) => `${API_BASE_URL}/api/appointments/${id}`,
+    confirm: (id: number) => `${API_BASE_URL}/api/appointments/${id}/confirm`,
+    cancel: (id: number) => `${API_BASE_URL}/api/appointments/${id}`,
   },
   // Health check
   health: `${API_BASE_URL}/health`,
 };
 
-// Helper function para hacer requests con autenticación
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('clinica_token');
   
@@ -37,24 +36,32 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const response = await fetch(url, {
     ...options,
     headers,
+    mode: 'cors',
+    credentials: 'include',
   });
 
-  // Si el token es inválido, limpiar y redirigir
+  // If unauthorized, clear token and redirect
   if (response.status === 401) {
     localStorage.removeItem('clinica_token');
-    window.location.href = '/';
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   }
 
   return response;
 };
 
-// Helper para manejar errores de la API
-export const handleApiError = (error: any): string => {
-  if (error.response?.data?.error) {
-    return error.response.data.error;
-  }
-  if (error.message) {
+export const handleApiError = (error: unknown): string => {
+  if (error instanceof Error) {
     return error.message;
   }
   return 'Ocurrió un error inesperado';
+};
+
+export const parseApiResponse = async (response: Response) => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
 };

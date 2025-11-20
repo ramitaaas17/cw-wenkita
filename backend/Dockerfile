@@ -1,28 +1,24 @@
-# Usa una imagen oficial de Go (versión ligera Alpine)
-FROM golang:1.22-alpine
+FROM golang:1.24-alpine
 
-# Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Instala git (necesario si alguna dependencia lo requiere)
+# Instalar git y herramientas necesarias
 RUN apk add --no-cache git
 
-# Copia los archivos de gestión de dependencias primero
-# Esto optimiza la caché de Docker: si no cambian estos archivos, no re-descarga todo
+# Copiar archivos de dependencias
 COPY go.mod go.sum ./
 
-# Descarga las dependencias
+# Descargar dependencias
 RUN go mod download
 
-# Copia el resto del código fuente del backend
+# Copiar todo el código fuente
 COPY . .
 
-# Asegura que las dependencias estén limpias y sincronizadas
+# Verificar dependencias
 RUN go mod tidy
 
-# Expone el puerto del backend
+# Exponer puerto
 EXPOSE 8080
 
-# Comando para iniciar la aplicación en modo desarrollo
-# Nota: Para producción idealmente se compila un binario, pero para dev esto está bien.
-CMD ["go", "run", "main.go"]
+# Ejecutar desde el directorio cmd/server
+CMD ["go", "run", "cmd/server/main.go"]

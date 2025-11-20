@@ -3,6 +3,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, RegisterData } from '@/src/types';
+import { API_ENDPOINTS, fetchWithAuth, handleApiError } from '@/src/lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -25,11 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('clinica_token');
       if (token) {
         try {
-          const response = await fetch('/api/auth/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
+          const response = await fetchWithAuth(API_ENDPOINTS.auth.me);
 
           if (response.ok) {
             const userData = await response.json();
@@ -49,39 +46,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.login, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!response.ok) {
-      throw new Error('Login failed');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al iniciar sesión');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('clinica_token', data.token);
+      setUser(data.user);
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    localStorage.setItem('clinica_token', data.token);
-    setUser(data.user);
   };
 
   const register = async (registerData: RegisterData) => {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(registerData),
-    });
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.register, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerData),
+      });
 
-    if (!response.ok) {
-      throw new Error('Registration failed');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al crear la cuenta');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('clinica_token', data.token);
+      setUser(data.user);
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    localStorage.setItem('clinica_token', data.token);
-    setUser(data.user);
   };
 
   const logout = () => {

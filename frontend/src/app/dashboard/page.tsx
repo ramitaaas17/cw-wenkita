@@ -9,6 +9,7 @@ import Calendar from '../../components/dashboard/Calendar';
 import CalendarModal from '../../components/dashboard/CalendarModal';
 import UpcomingAppointments from '../../components/dashboard/UpcomingAppointments';
 import type { Appointment } from '@/src/types';
+import { API_ENDPOINTS, fetchWithAuth } from '@/src/lib/api';
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -19,6 +20,7 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDateAppointments, setSelectedDateAppointments] = useState<Appointment[]>([]);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -28,20 +30,19 @@ export default function DashboardPage() {
 
   const loadAppointments = async () => {
     try {
-      const response = await fetch('/api/appointments', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('clinica_token')}`,
-        },
-      });
+      setError('');
+      const response = await fetchWithAuth(API_ENDPOINTS.appointments.list);
 
       if (!response.ok) {
         throw new Error('Error al cargar las citas');
       }
 
       const data = await response.json();
-      setAppointments(data);
+      setAppointments(data || []);
     } catch (err) {
       console.error('Error loading appointments:', err);
+      setError('No se pudieron cargar las citas. Por favor, intenta de nuevo.');
+      setAppointments([]);
     } finally {
       setIsLoadingAppointments(false);
     }
@@ -88,12 +89,24 @@ export default function DashboardPage() {
   }
 
   return (
-    <div >
+    <div>
       {/* Header con estadísticas */}
       <DashboardHeader />
 
       {/* Contenido principal */}
       <div className="container mx-auto px-4 py-12">
+        {/* Mensaje de error */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <p className="text-red-700 text-sm font-medium">{error}</p>
+            </div>
+          </div>
+        )}
+
         {isLoadingAppointments ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">

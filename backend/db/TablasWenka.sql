@@ -129,3 +129,18 @@ CREATE TABLE pagos (
     notas TEXT
 );
 
+
+
+-- Agregar columna duracion_minutos a la tabla citas si no existe
+ALTER TABLE citas 
+ADD COLUMN IF NOT EXISTS duracion_minutos INT DEFAULT 30 
+AFTER fecha_hora;
+
+-- Actualizar las citas existentes con la duración del tratamiento
+UPDATE citas c
+JOIN tratamientos t ON c.tratamiento_id = t.id
+SET c.duracion_minutos = t.duracion_estimada_minutos
+WHERE c.duracion_minutos IS NULL OR c.duracion_minutos = 30;
+
+-- Asegurar que todas las citas tengan duración
+UPDATE citas SET duracion_minutos = 30 WHERE duracion_minutos IS NULL;

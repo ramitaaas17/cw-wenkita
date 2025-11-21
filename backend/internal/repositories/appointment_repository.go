@@ -1,55 +1,48 @@
+// backend/internal/repositories/appointment_repository.go
 package repositories
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/wenka/backend/internal/models"
+	"gorm.io/gorm"
 )
 
 type AppointmentRepository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
 // NewAppointmentRepository crea una nueva instancia del repositorio
-func NewAppointmentRepository(db *sql.DB) *AppointmentRepository {
+func NewAppointmentRepository(db *gorm.DB) *AppointmentRepository {
 	return &AppointmentRepository{db: db}
 }
 
 // Create inserta una nueva cita en la base de datos
 func (r *AppointmentRepository) Create(appointment *models.Appointment) error {
-	query := `
-		INSERT INTO citas (paciente_id, especialista_id, tratamiento_id, fecha_hora, motivo, estado, notas, fecha_creacion)
-		VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-	`
-
-	result, err := r.db.Exec(
-		query,
-		appointment.PacienteID,
-		appointment.EspecialistaID,
-		appointment.TratamientoID,
-		appointment.FechaHora,
-		appointment.Motivo,
-		appointment.Estado,
-		appointment.Notas,
-	)
-	if err != nil {
-		return fmt.Errorf("error al crear cita: %v", err)
+	// Obtener duración del tratamiento si no está definida
+	if appointment.DuracionMinutos == 0 {
+		var tratamiento models.Tratamiento
+		if err := r.db.First(&tratamiento, appointment.TratamientoID).Error; err == nil {
+			appointment.DuracionMinutos = tratamiento.DuracionEstimadaMinutos
+		} else {
+			appointment.DuracionMinutos = 30 // valor por defecto
+		}
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("error al obtener ID: %v", err)
+	result := r.db.Create(appointment)
+	if result.Error != nil {
+		return fmt.Errorf("error al crear cita: %v", result.Error)
 	}
 
-	appointment.ID = int(id)
 	return nil
 }
 
 // FindByID busca una cita por su ID con información completa
 func (r *AppointmentRepository) FindByID(id int) (*models.AppointmentWithDetails, error) {
-	query := `
+	var result models.AppointmentWithDetails
+
+	err := r.db.Raw(`
 		SELECT 
 			c.id,
 			CONCAT(p.nombre, ' ', p.apellido_paterno, ' ', COALESCE(p.apellido_materno, '')) as nombre_paciente,
@@ -60,47 +53,43 @@ func (r *AppointmentRepository) FindByID(id int) (*models.AppointmentWithDetails
 			es.nombre as especialidad,
 			t.nombre as tratamiento,
 			c.fecha_hora,
-			c.motivo,
+			COALESCE(c.motivo, '') as motivo,
 			c.estado,
-			c.fecha_creacion
+			c.fecha_creacion as created_at
 		FROM citas c
 		JOIN pacientes p ON c.paciente_id = p.id
 		JOIN especialistas e ON c.especialista_id = e.id
 		JOIN especialidades es ON e.especialidad_id = es.id
 		JOIN tratamientos t ON c.tratamiento_id = t.id
 		WHERE c.id = ?
-	`
-
-	appointment := &models.AppointmentWithDetails{}
-	err := r.db.QueryRow(query, id).Scan(
-		&appointment.ID,
-		&appointment.NombrePaciente,
-		&appointment.EmailPaciente,
-		&appointment.TelefonoPaciente,
-		&appointment.NombreEspecialista,
-		&appointment.EmailEspecialista,
-		&appointment.Especialidad,
-		&appointment.Tratamiento,
-		&appointment.FechaHora,
-		&appointment.Motivo,
-		&appointment.Estado,
-		&appointment.CreatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	`, id).Scan(&result).Error
 
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("cita no encontrada")
+		}
 		return nil, fmt.Errorf("error al buscar cita: %v", err)
 	}
 
-	return appointment, nil
+	// Verificar si se encontró un resultado
+	if result.ID == 0 {
+		return nil, fmt.Errorf("cita no encontrada")
+	}
+
+	return &result, nil
 }
 
 // FindByUserID obtiene todas las citas de un usuario
 func (r *AppointmentRepository) FindByUserID(userID int) ([]models.AppointmentResponse, error) {
-	query := `
+	// Primero obtenemos el email del usuario
+	var user models.User
+	if err := r.db.First(&user, userID).Error; err != nil {
+		return nil, fmt.Errorf("error al obtener usuario: %v", err)
+	}
+
+	var appointments []models.AppointmentResponse
+
+	err := r.db.Raw(`
 		SELECT 
 			c.id,
 			CONCAT(p.nombre, ' ', p.apellido_paterno, ' ', COALESCE(p.apellido_materno, '')) as nombre_paciente,
@@ -108,72 +97,44 @@ func (r *AppointmentRepository) FindByUserID(userID int) ([]models.AppointmentRe
 			p.email,
 			t.nombre as servicio,
 			DATE(c.fecha_hora) as fecha_cita,
-			TIME(c.fecha_hora) as hora_cita,
+			TIME_FORMAT(c.fecha_hora, '%H:%i') as hora_cita,
 			c.estado,
-			c.motivo as mensaje,
-			c.fecha_creacion
+			COALESCE(c.motivo, '') as mensaje,
+			c.fecha_creacion as created_at
 		FROM citas c
 		JOIN pacientes p ON c.paciente_id = p.id
 		JOIN tratamientos t ON c.tratamiento_id = t.id
-		WHERE p.id IN (SELECT id FROM pacientes WHERE email = (SELECT email FROM usuarios WHERE id = ?))
+		WHERE p.email = ?
 		ORDER BY c.fecha_hora DESC
-	`
+	`, user.Email).Scan(&appointments).Error
 
-	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("error al obtener citas: %v", err)
 	}
-	defer rows.Close()
 
-	var appointments []models.AppointmentResponse
-	for rows.Next() {
-		var apt models.AppointmentResponse
-		var fechaCita, horaCita string
-
-		err := rows.Scan(
-			&apt.ID,
-			&apt.NombrePaciente,
-			&apt.Telefono,
-			&apt.Email,
-			&apt.Servicio,
-			&fechaCita,
-			&horaCita,
-			&apt.Estado,
-			&apt.Mensaje,
-			&apt.CreatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error al escanear cita: %v", err)
-		}
-
-		apt.FechaCita = fechaCita
-		apt.HoraCita = horaCita[:5] // Solo HH:MM
-		appointments = append(appointments, apt)
+	// Si no hay citas, retornar array vacío en lugar de nil
+	if appointments == nil {
+		return []models.AppointmentResponse{}, nil
 	}
 
 	return appointments, nil
 }
 
-// CheckAvailability verifica si un especialista está disponible en un horario específico
+// CheckAvailability verifica si un especialista está disponible
 func (r *AppointmentRepository) CheckAvailability(especialistaID int, fechaHora time.Time, duracionMinutos int) (bool, error) {
 	// Calcula el rango de tiempo de la cita
 	startTime := fechaHora
 	endTime := fechaHora.Add(time.Duration(duracionMinutos) * time.Minute)
 
-	// Busca citas existentes que se traslapen con el horario solicitado
-	query := `
-		SELECT COUNT(*) 
-		FROM citas 
-		WHERE especialista_id = ? 
-		AND estado NOT IN ('cancelada', 'completada')
-		AND (
-			(fecha_hora < ? AND DATE_ADD(fecha_hora, INTERVAL duracion_minutos MINUTE) > ?)
-			OR (fecha_hora >= ? AND fecha_hora < ?)
-		)
-	`
+	// Usar una query más simple y efectiva
+	var count int64
+	err := r.db.Model(&models.Appointment{}).
+		Where("especialista_id = ?", especialistaID).
+		Where("estado NOT IN ?", []string{"cancelada", "completada"}).
+		Where(r.db.Where("fecha_hora < ? AND DATE_ADD(fecha_hora, INTERVAL duracion_minutos MINUTE) > ?", endTime, startTime).
+			Or("fecha_hora >= ? AND fecha_hora < ?", startTime, endTime)).
+		Count(&count).Error
 
-	var count int
-	err := r.db.QueryRow(query, especialistaID, endTime, startTime, startTime, endTime).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("error al verificar disponibilidad: %v", err)
 	}
@@ -184,19 +145,15 @@ func (r *AppointmentRepository) CheckAvailability(especialistaID int, fechaHora 
 
 // UpdateStatus actualiza el estado de una cita
 func (r *AppointmentRepository) UpdateStatus(id int, newStatus string) error {
-	query := `UPDATE citas SET estado = ? WHERE id = ?`
+	result := r.db.Model(&models.Appointment{}).
+		Where("id = ?", id).
+		Update("estado", newStatus)
 
-	result, err := r.db.Exec(query, newStatus, id)
-	if err != nil {
-		return fmt.Errorf("error al actualizar estado: %v", err)
+	if result.Error != nil {
+		return fmt.Errorf("error al actualizar estado: %v", result.Error)
 	}
 
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error al verificar actualización: %v", err)
-	}
-
-	if rows == 0 {
+	if result.RowsAffected == 0 {
 		return fmt.Errorf("cita no encontrada")
 	}
 
@@ -210,6 +167,7 @@ func (r *AppointmentRepository) Delete(id int) error {
 }
 
 // FindEspecialistaByServicio encuentra un especialista disponible para un servicio
+// MODIFICADO: Ahora busca por especialidad en lugar de tratamiento exacto
 func (r *AppointmentRepository) FindEspecialistaByServicio(servicio string) (*struct {
 	ID              int
 	Nombre          string
@@ -218,20 +176,6 @@ func (r *AppointmentRepository) FindEspecialistaByServicio(servicio string) (*st
 	TratamientoID   int
 	DuracionMinutos int
 }, error) {
-	query := `
-		SELECT 
-			e.id,
-			CONCAT(e.nombre, ' ', e.apellido_paterno) as nombre,
-			e.email,
-			t.especialidad_id,
-			t.id as tratamiento_id,
-			t.duracion_estimada_minutos
-		FROM especialistas e
-		JOIN tratamientos t ON t.especialidad_id = e.especialidad_id
-		WHERE t.nombre = ? AND e.activo = TRUE AND t.activo = TRUE
-		LIMIT 1
-	`
-
 	result := &struct {
 		ID              int
 		Nombre          string
@@ -241,21 +185,49 @@ func (r *AppointmentRepository) FindEspecialistaByServicio(servicio string) (*st
 		DuracionMinutos int
 	}{}
 
-	err := r.db.QueryRow(query, servicio).Scan(
-		&result.ID,
-		&result.Nombre,
-		&result.Email,
-		&result.EspecialidadID,
-		&result.TratamientoID,
-		&result.DuracionMinutos,
-	)
+	// Primero intentamos buscar por nombre exacto del tratamiento
+	err := r.db.Raw(`
+		SELECT 
+			e.id,
+			CONCAT(e.nombre, ' ', e.apellido_paterno) as nombre,
+			e.email,
+			t.especialidad_id,
+			t.id as tratamiento_id,
+			t.duracion_estimada_minutos as duracion_minutos
+		FROM especialistas e
+		JOIN tratamientos t ON t.especialidad_id = e.especialidad_id
+		WHERE t.nombre = ? AND e.activo = TRUE AND t.activo = TRUE
+		LIMIT 1
+	`, servicio).Scan(result).Error
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("no se encontró especialista para el servicio: %s", servicio)
+	// Si no se encuentra por nombre de tratamiento, buscar por nombre de especialidad
+	if err != nil || result.ID == 0 {
+		err = r.db.Raw(`
+			SELECT 
+				e.id,
+				CONCAT(e.nombre, ' ', e.apellido_paterno) as nombre,
+				e.email,
+				es.id as especialidad_id,
+				t.id as tratamiento_id,
+				t.duracion_estimada_minutos as duracion_minutos
+			FROM especialistas e
+			JOIN especialidades es ON es.id = e.especialidad_id
+			JOIN tratamientos t ON t.especialidad_id = es.id
+			WHERE es.nombre = ? AND e.activo = TRUE AND t.activo = TRUE
+			LIMIT 1
+		`, servicio).Scan(result).Error
+
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, fmt.Errorf("no se encontró especialista para el servicio: %s", servicio)
+			}
+			return nil, fmt.Errorf("error al buscar especialista: %v", err)
+		}
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("error al buscar especialista: %v", err)
+	// Verificar si se encontró un resultado
+	if result.ID == 0 {
+		return nil, fmt.Errorf("no se encontró especialista para el servicio: %s", servicio)
 	}
 
 	return result, nil
@@ -264,34 +236,37 @@ func (r *AppointmentRepository) FindEspecialistaByServicio(servicio string) (*st
 // CreateOrGetPaciente crea un paciente si no existe o lo obtiene si ya existe
 func (r *AppointmentRepository) CreateOrGetPaciente(nombre, apellido, email, telefono string) (int, error) {
 	// Primero intenta buscar el paciente por email
-	var pacienteID int
-	queryFind := `SELECT id FROM pacientes WHERE email = ?`
-	err := r.db.QueryRow(queryFind, email).Scan(&pacienteID)
+	var paciente models.Paciente
+	err := r.db.Where("email = ?", email).First(&paciente).Error
 
 	if err == nil {
-		// El paciente ya existe
-		return pacienteID, nil
+		// El paciente ya existe, actualizamos su información
+		r.db.Model(&paciente).Updates(map[string]interface{}{
+			"nombre":           nombre,
+			"apellido_paterno": apellido,
+			"telefono":         telefono,
+		})
+		return paciente.ID, nil
 	}
 
-	if err != sql.ErrNoRows {
+	if err != gorm.ErrRecordNotFound {
 		return 0, fmt.Errorf("error al buscar paciente: %v", err)
 	}
 
 	// El paciente no existe, lo creamos
-	queryInsert := `
-		INSERT INTO pacientes (nombre, apellido_paterno, email, telefono, fecha_nacimiento, sexo, fecha_registro)
-		VALUES (?, ?, ?, ?, '2000-01-01', 'O', NOW())
-	`
-
-	result, err := r.db.Exec(queryInsert, nombre, apellido, email, telefono)
-	if err != nil {
-		return 0, fmt.Errorf("error al crear paciente: %v", err)
+	newPaciente := models.Paciente{
+		Nombre:          nombre,
+		ApellidoPaterno: apellido,
+		Email:           email,
+		Telefono:        telefono,
+		FechaNacimiento: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		Sexo:            "O",
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("error al obtener ID de paciente: %v", err)
+	result := r.db.Create(&newPaciente)
+	if result.Error != nil {
+		return 0, fmt.Errorf("error al crear paciente: %v", result.Error)
 	}
 
-	return int(id), nil
+	return newPaciente.ID, nil
 }

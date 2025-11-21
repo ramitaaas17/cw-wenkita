@@ -33,9 +33,11 @@ export default function DashboardPage() {
       setError('');
       setIsLoadingAppointments(true);
       const data = await appointmentService.getAppointments();
+      console.log('Citas cargadas:', data);
       setAppointments(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al cargar las citas';
+      console.error('Error al cargar citas:', errorMessage);
       setError(errorMessage);
       setAppointments([]);
     } finally {
@@ -50,6 +52,7 @@ export default function DashboardPage() {
   }, [isAuthenticated]);
 
   const handleDateClick = (date: Date, dayAppointments: Appointment[]) => {
+    console.log('Fecha clickeada:', date, 'Citas:', dayAppointments);
     setSelectedDate(date);
     setSelectedDateAppointments(dayAppointments);
     setIsModalOpen(true);
@@ -59,6 +62,18 @@ export default function DashboardPage() {
     setIsModalOpen(false);
     setSelectedDate(null);
     setSelectedDateAppointments([]);
+  };
+
+  const handleAppointmentCreated = async () => {
+    console.log('Recargando citas después de crear/cancelar...');
+    await loadAppointments();
+    
+    // Actualizar las citas de la fecha seleccionada si el modal está abierto
+    if (selectedDate) {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const updatedDayAppointments = appointments.filter(apt => apt.fecha_cita === dateStr);
+      setSelectedDateAppointments(updatedDayAppointments);
+    }
   };
 
   if (authLoading) {
@@ -81,7 +96,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <DashboardHeader />
+      <DashboardHeader appointments={appointments} />
 
       <div className="container mx-auto px-4 py-12">
         {error && (
@@ -128,7 +143,7 @@ export default function DashboardPage() {
         onClose={handleModalClose}
         selectedDate={selectedDate}
         appointments={selectedDateAppointments}
-        onAppointmentCreated={loadAppointments}
+        onAppointmentCreated={handleAppointmentCreated}
       />
     </div>
   );

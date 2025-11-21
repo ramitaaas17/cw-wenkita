@@ -24,10 +24,17 @@ export const API_ENDPOINTS = {
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('clinica_token');
   
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
   };
+
+  // Merge existing headers if provided
+  if (options.headers) {
+    const existingHeaders = new Headers(options.headers);
+    existingHeaders.forEach((value, key) => {
+      headers[key] = value;
+    });
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

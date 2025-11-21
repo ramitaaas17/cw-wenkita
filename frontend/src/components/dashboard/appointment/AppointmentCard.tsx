@@ -44,13 +44,13 @@ export default function AppointmentCard({
       cancelada: 'Cancelada',
       completada: 'Completada',
       en_curso: 'En Curso',
-      no_asistio: 'No Asistio',
+      no_asistio: 'No Asistió',
     };
     return labels[estado] || estado;
   };
 
   const handleCancel = async () => {
-    if (!onCancel || !window.confirm('Confirma que deseas cancelar esta cita?')) {
+    if (!onCancel || !window.confirm('¿Confirmas que deseas cancelar esta cita?')) {
       return;
     }
     await onCancel(appointment.id);

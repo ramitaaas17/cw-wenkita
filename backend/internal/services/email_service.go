@@ -1,6 +1,8 @@
+// backend/internal/services/email_service.go
 package services
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/smtp"
 	"os"
@@ -14,6 +16,7 @@ type EmailService struct {
 	smtpUsername string
 	smtpPassword string
 	fromEmail    string
+	frontendURL  string
 }
 
 // NewEmailService crea una nueva instancia del servicio de email
@@ -24,6 +27,7 @@ func NewEmailService() *EmailService {
 		smtpUsername: getEnvOrDefault("SMTP_USERNAME", ""),
 		smtpPassword: getEnvOrDefault("SMTP_PASSWORD", ""),
 		fromEmail:    getEnvOrDefault("FROM_EMAIL", "noreply@clinicawenka.com"),
+		frontendURL:  getEnvOrDefault("FRONTEND_URL", "http://localhost:3000"),
 	}
 }
 
@@ -35,6 +39,7 @@ func (s *EmailService) SendAppointmentConfirmationToPatient(appointment *models.
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -105,12 +110,14 @@ func (s *EmailService) SendAppointmentConfirmationToPatient(appointment *models.
 func (s *EmailService) SendAppointmentNotificationToSpecialist(appointment *models.AppointmentWithDetails) error {
 	subject := "Nueva Cita Agendada - Clínica Wenka"
 
-	confirmURL := fmt.Sprintf("http://localhost:3000/appointments/confirm/%d", appointment.ID)
+	// Usar la URL del frontend desde variable de entorno
+	confirmURL := fmt.Sprintf("%s/appointments/confirm/%d", s.frontendURL, appointment.ID)
 
 	body := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -192,15 +199,15 @@ func (s *EmailService) sendEmail(to, subject, body string) error {
 		return nil
 	}
 
-	// Configurar mensaje
-	message := []byte(
-		"From: " + s.fromEmail + "\r\n" +
-			"To: " + to + "\r\n" +
-			"Subject: " + subject + "\r\n" +
-			"MIME-Version: 1.0\r\n" +
-			"Content-Type: text/html; charset=\"UTF-8\"\r\n" +
-			"\r\n" +
-			body + "\r\n")
+	// Configurar mensaje con encoding UTF-8 correcto
+	from := "From: " + s.fromEmail + "\r\n"
+	toHeader := "To: " + to + "\r\n"
+	subjectEncoded := "Subject: =?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(subject)) + "?=\r\n"
+	mime := "MIME-Version: 1.0\r\n"
+	contentType := "Content-Type: text/html; charset=UTF-8\r\n"
+	contentTransfer := "Content-Transfer-Encoding: 8bit\r\n"
+
+	message := []byte(from + toHeader + subjectEncoded + mime + contentType + contentTransfer + "\r\n" + body + "\r\n")
 
 	// Autenticación SMTP
 	auth := smtp.PlainAuth("", s.smtpUsername, s.smtpPassword, s.smtpHost)

@@ -32,8 +32,9 @@ services:
     container_name: wenka_backend
     ports:
       - "8080:8080"
+    env_file:
+      - ./backend/.env
     environment:
-
       DB_HOST: db
       DB_PORT: 3306
       DB_USER: wenka_user

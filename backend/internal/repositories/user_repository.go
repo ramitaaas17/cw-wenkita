@@ -1,97 +1,57 @@
+// backend/internal/repositories/user_repository.go
 package repositories
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/wenka/backend/internal/models"
+	"gorm.io/gorm"
 )
 
 type UserRepository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
 // NewUserRepository crea una nueva instancia del repositorio
-func NewUserRepository(db *sql.DB) *UserRepository {
+func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
 // Create inserta un nuevo usuario en la base de datos
 func (r *UserRepository) Create(user *models.User) error {
-	query := `
-		INSERT INTO usuarios (nombre, apellido, email, password, telefono, created_at)
-		VALUES (?, ?, ?, ?, ?, NOW())
-	`
-
-	result, err := r.db.Exec(query, user.Nombre, user.Apellido, user.Email, user.Password, user.Telefono)
-	if err != nil {
-		return fmt.Errorf("error al crear usuario: %v", err)
+	result := r.db.Create(user)
+	if result.Error != nil {
+		return fmt.Errorf("error al crear usuario: %v", result.Error)
 	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("error al obtener ID: %v", err)
-	}
-
-	user.ID = int(id)
 	return nil
 }
 
 // FindByEmail busca un usuario por su email
 func (r *UserRepository) FindByEmail(email string) (*models.User, error) {
-	query := `
-		SELECT id, nombre, apellido, email, password, telefono, created_at
-		FROM usuarios
-		WHERE email = ?
-	`
+	var user models.User
+	result := r.db.Where("email = ?", email).First(&user)
 
-	user := &models.User{}
-	err := r.db.QueryRow(query, email).Scan(
-		&user.ID,
-		&user.Nombre,
-		&user.Apellido,
-		&user.Email,
-		&user.Password,
-		&user.Telefono,
-		&user.CreatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error al buscar usuario: %v", result.Error)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("error al buscar usuario: %v", err)
-	}
-
-	return user, nil
+	return &user, nil
 }
 
 // FindByID busca un usuario por su ID
 func (r *UserRepository) FindByID(id int) (*models.User, error) {
-	query := `
-		SELECT id, nombre, apellido, email, telefono, created_at
-		FROM usuarios
-		WHERE id = ?
-	`
+	var user models.User
+	result := r.db.First(&user, id)
 
-	user := &models.User{}
-	err := r.db.QueryRow(query, id).Scan(
-		&user.ID,
-		&user.Nombre,
-		&user.Apellido,
-		&user.Email,
-		&user.Telefono,
-		&user.CreatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error al buscar usuario: %v", result.Error)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("error al buscar usuario: %v", err)
-	}
-
-	return user, nil
+	return &user, nil
 }

@@ -1,3 +1,4 @@
+// backend/cmd/server/main.go
 package main
 
 import (
@@ -17,14 +18,20 @@ func main() {
 	// Cargar configuración
 	cfg := config.LoadConfig()
 
-	// Conectar a la base de datos
+	// Conectar a la base de datos con GORM
 	db, err := database.Connect(cfg.GetDSN())
 	if err != nil {
 		log.Fatalf("Error al conectar a la base de datos: %v", err)
 	}
-	defer db.Close()
 
-	// Inicializar repositorios
+	// Obtener *sql.DB para cerrar la conexión al final
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("Error al obtener SQL DB: %v", err)
+	}
+	defer sqlDB.Close()
+
+	// Inicializar repositorios con GORM
 	userRepo := repositories.NewUserRepository(db)
 	appointmentRepo := repositories.NewAppointmentRepository(db)
 

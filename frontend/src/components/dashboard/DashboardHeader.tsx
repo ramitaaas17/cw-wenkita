@@ -3,8 +3,13 @@
 
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import type { Appointment } from '@/src/types';
 
-export default function DashboardHeader() {
+interface DashboardHeaderProps {
+  appointments?: Appointment[];
+}
+
+export default function DashboardHeader({ appointments = [] }: DashboardHeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
 
@@ -15,16 +20,67 @@ export default function DashboardHeader() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Buenos dias';
+    if (hour < 12) return 'Buenos días';
     if (hour < 18) return 'Buenas tardes';
     return 'Buenas noches';
   };
 
+  // Calcular estadísticas reales
+  const getNextAppointment = () => {
+    const now = new Date();
+    const upcoming = appointments
+      .filter(apt => {
+        const aptDateTime = new Date(apt.fecha_cita + 'T' + apt.hora_cita);
+        return aptDateTime > now && (apt.estado === 'programada' || apt.estado === 'confirmada');
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.fecha_cita + 'T' + a.hora_cita);
+        const dateB = new Date(b.fecha_cita + 'T' + b.hora_cita);
+        return dateA.getTime() - dateB.getTime();
+      });
+
+    if (upcoming.length === 0) return null;
+    
+    const next = upcoming[0];
+    const aptDate = new Date(next.fecha_cita + 'T' + next.hora_cita);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const aptDateOnly = new Date(aptDate);
+    aptDateOnly.setHours(0, 0, 0, 0);
+    
+    const isToday = aptDateOnly.getTime() === today.getTime();
+    const dayLabel = isToday ? 'Hoy' : aptDate.toLocaleDateString('es-MX', { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'short' 
+    });
+    
+    const timeLabel = aptDate.toLocaleTimeString('es-MX', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+
+    return { dayLabel, timeLabel };
+  };
+
+  const getPendingCount = () => {
+    return appointments.filter(apt => apt.estado === 'programada').length;
+  };
+
+  const getCompletedCount = () => {
+    return appointments.filter(apt => apt.estado === 'completada').length;
+  };
+
+  const nextAppointment = getNextAppointment();
+  const pendingCount = getPendingCount();
+  const completedCount = getCompletedCount();
+
   const statItems = [
     { 
-      title: 'Proxima Cita', 
-      value: 'Hoy', 
-      subtitle: 'A las 10:00 AM',
+      title: 'Próxima Cita', 
+      value: nextAppointment?.dayLabel || '-', 
+      subtitle: nextAppointment ? `A las ${nextAppointment.timeLabel}` : 'Sin citas próximas',
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -33,8 +89,8 @@ export default function DashboardHeader() {
     },
     { 
       title: 'Pendientes', 
-      value: '0', 
-      subtitle: 'Citas por confirmar',
+      value: pendingCount.toString(), 
+      subtitle: pendingCount === 1 ? 'Cita por confirmar' : 'Citas por confirmar',
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -43,8 +99,8 @@ export default function DashboardHeader() {
     },
     { 
       title: 'Historial', 
-      value: '0', 
-      subtitle: 'Consultas realizadas',
+      value: completedCount.toString(), 
+      subtitle: completedCount === 1 ? 'Consulta realizada' : 'Consultas realizadas',
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -88,7 +144,7 @@ export default function DashboardHeader() {
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
               />
             </svg>
-            <span className="font-medium">Cerrar Sesion</span>
+            <span className="font-medium">Cerrar Sesión</span>
           </button>
         </div>
 

@@ -117,8 +117,8 @@ export default function Calendar({ onDateClick, appointments }: CalendarProps) {
                 <div
                   key={idx}
                   className={`w-1 h-1 rounded-full ${
-                    apt.estado === 'confirmada' ? 'bg-green-500' :
-                    apt.estado === 'pendiente' ? 'bg-amber-500' :
+                    apt.estado === 'completada' ? 'bg-green-500' :
+                    apt.estado === 'programada' ? 'bg-amber-500' :
                     'bg-gray-400'
                   }`}
                 />
@@ -196,11 +196,11 @@ export default function Calendar({ onDateClick, appointments }: CalendarProps) {
       <div className="flex items-center justify-center gap-4 px-6 py-4 bg-gray-50 border-t border-gray-100">
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-          <span className="text-xs text-gray-600">Confirmada</span>
+          <span className="text-xs text-gray-600">Completada</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-          <span className="text-xs text-gray-600">Pendiente</span>
+          <span className="text-xs text-gray-600">Programada</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 rounded-full bg-blue-500"></div>

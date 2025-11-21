@@ -1,7 +1,9 @@
+// backend/internal/handlers/appointment_handler.go
 package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,25 +32,34 @@ func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Re
 	// Obtener usuario autenticado del token
 	userID, err := h.getUserIDFromToken(r)
 	if err != nil {
+		log.Printf("Error de autenticación: %v", err)
 		respondWithError(w, http.StatusUnauthorized, "No autorizado")
 		return
 	}
 
+	log.Printf("Usuario autenticado: %d", userID)
+
 	// Parsear el request body
 	var req models.CreateAppointmentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error al decodificar request: %v", err)
 		respondWithError(w, http.StatusBadRequest, "Datos inválidos")
 		return
 	}
 
+	log.Printf("Request recibido: %+v", req)
+
 	// Crear la cita
 	appointment, err := h.appointmentService.CreateAppointment(userID, &req)
 	if err != nil {
+		log.Printf("Error al crear cita: %v", err)
+
 		// Errores de validación o disponibilidad
 		if strings.Contains(err.Error(), "disponible") ||
 			strings.Contains(err.Error(), "requerido") ||
 			strings.Contains(err.Error(), "inválido") ||
-			strings.Contains(err.Error(), "pasado") {
+			strings.Contains(err.Error(), "pasado") ||
+			strings.Contains(err.Error(), "no se encontró especialista") {
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -58,6 +69,7 @@ func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	log.Printf("Cita creada exitosamente: %+v", appointment)
 	respondWithJSON(w, http.StatusCreated, appointment)
 }
 
@@ -66,17 +78,22 @@ func (h *AppointmentHandler) GetAppointments(w http.ResponseWriter, r *http.Requ
 	// Obtener usuario autenticado
 	userID, err := h.getUserIDFromToken(r)
 	if err != nil {
+		log.Printf("Error de autenticación en GetAppointments: %v", err)
 		respondWithError(w, http.StatusUnauthorized, "No autorizado")
 		return
 	}
 
+	log.Printf("Obteniendo citas para usuario: %d", userID)
+
 	// Obtener citas
 	appointments, err := h.appointmentService.GetUserAppointments(userID)
 	if err != nil {
+		log.Printf("Error al obtener citas: %v", err)
 		respondWithError(w, http.StatusInternalServerError, "Error al obtener citas")
 		return
 	}
 
+	log.Printf("Citas encontradas: %d", len(appointments))
 	respondWithJSON(w, http.StatusOK, appointments)
 }
 
@@ -156,10 +173,12 @@ func (h *AppointmentHandler) CancelAppointment(w http.ResponseWriter, r *http.Re
 	// Cancelar cita
 	err = h.appointmentService.CancelAppointment(id)
 	if err != nil {
+		log.Printf("Error al cancelar cita %d: %v", id, err)
 		respondWithError(w, http.StatusInternalServerError, "Error al cancelar la cita")
 		return
 	}
 
+	log.Printf("Cita %d cancelada exitosamente", id)
 	respondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Cita cancelada exitosamente",
 	})

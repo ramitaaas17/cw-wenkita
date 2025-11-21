@@ -52,11 +52,16 @@ export default function CalendarModal({
       await appointmentService.createAppointment(formData);
       setShowSuccess(true);
       
-      setTimeout(() => {
-        setShowSuccess(false);
-        setMode('view');
-        onAppointmentCreated();
-      }, 2000);
+      // Esperar un momento para mostrar el mensaje de éxito
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Actualizar las citas ANTES de cerrar el modal
+      await onAppointmentCreated();
+      
+      // Ahora sí cerrar el modal
+      setShowSuccess(false);
+      onClose();
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al agendar la cita';
       setError(errorMessage);
@@ -67,9 +72,23 @@ export default function CalendarModal({
 
   const handleCancelAppointment = async (id: number) => {
     setCancellingId(id);
+    setError('');
+    
     try {
       await appointmentService.cancelAppointment(id);
-      onAppointmentCreated();
+      
+      // Actualizar la lista de citas
+      await onAppointmentCreated();
+      
+      // Si ya no hay más citas para este día, cambiar a modo crear
+      const remainingAppointments = appointments.filter(apt => 
+        apt.id !== id && apt.estado !== 'cancelada'
+      );
+      
+      if (remainingAppointments.length === 0) {
+        setMode('create');
+      }
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al cancelar la cita';
       setError(errorMessage);
@@ -117,6 +136,17 @@ export default function CalendarModal({
           </div>
 
           <div className="p-8">
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-red-700 text-sm font-medium">{error}</p>
+                </div>
+              </div>
+            )}
+
             {mode === 'view' && appointments.length > 0 ? (
               <>
                 <div className="space-y-4 mb-6">
@@ -137,19 +167,19 @@ export default function CalendarModal({
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Agendar otra cita este dia
+                  Agendar otra cita este día
                 </button>
               </>
             ) : (
               <>
                 {showSuccess && (
-                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 animate-pulse">
                     <svg className="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     <div>
-                      <p className="font-semibold text-green-800">Cita agendada exitosamente!</p>
-                      <p className="text-sm text-green-700">Te enviaremos una confirmacion por correo</p>
+                      <p className="font-semibold text-green-800">¡Cita agendada exitosamente!</p>
+                      <p className="text-sm text-green-700">Actualizando calendario...</p>
                     </div>
                   </div>
                 )}

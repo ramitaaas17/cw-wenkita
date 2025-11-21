@@ -2,7 +2,7 @@
 'use client';
 
 import { Activity, Stethoscope, Scissors, Dumbbell, Smile, Footprints } from 'lucide-react';
-import type { Service } from '@/types';
+import type { Service } from '@/src/types';
 
 interface ServiceCardProps {
   service: Service;

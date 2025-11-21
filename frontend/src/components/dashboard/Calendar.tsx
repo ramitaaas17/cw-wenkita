@@ -1,7 +1,7 @@
 // components/dashboard/Calendar.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Appointment } from '@/src/types';
 
 interface CalendarProps {
@@ -32,8 +32,15 @@ export default function Calendar({ onDateClick, appointments }: CalendarProps) {
   };
 
   const getAppointmentsForDate = (date: Date): Appointment[] => {
-    const dateStr = date.toISOString().split('T')[0];
-    return appointments.filter(apt => apt.fecha_cita === dateStr);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
+    return appointments.filter(apt => {
+      const cleanDate = apt.fecha_cita.split('T')[0];
+      return cleanDate === dateStr && apt.estado !== 'cancelada';
+    });
   };
 
   const isToday = (date: Date): boolean => {
@@ -69,14 +76,12 @@ export default function Calendar({ onDateClick, appointments }: CalendarProps) {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
     const days = [];
 
-    // Empty cells before first day
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(
         <div key={`empty-${i}`} className="aspect-square"></div>
       );
     }
 
-    // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       const dayAppointments = getAppointmentsForDate(date);
@@ -85,44 +90,51 @@ export default function Calendar({ onDateClick, appointments }: CalendarProps) {
       const selected = isSameDay(date, selectedDate);
       const isPast = date < new Date() && !today;
 
+      const confirmedCount = dayAppointments.filter(apt => apt.estado === 'confirmada').length;
+      const programmedCount = dayAppointments.filter(apt => apt.estado === 'programada').length;
+
       days.push(
         <button
           key={day}
           onClick={() => handleDateClick(day)}
           disabled={isPast}
           className={`
-            group relative aspect-square p-3 rounded-lg transition-all duration-150
+            group relative aspect-square p-2 rounded-xl transition-all duration-200
             flex flex-col items-center justify-center
-            ${isPast ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'}
-            ${today ? '' : ''}
-            ${selected && !today ? 'bg-blue-50' : ''}
+            ${isPast ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'}
+            ${selected && !today ? 'bg-blue-50 ring-2 ring-blue-500' : ''}
           `}
         >
-          {/* Day number with pill background for today */}
           <div className={`
-            flex items-center justify-center w-9 h-9 rounded-full transition-all
-            ${today ? 'bg-blue-500 text-white font-semibold' : ''}
-            ${selected && !today ? 'bg-blue-100 text-blue-700 font-medium' : ''}
-            ${!today && !selected ? 'text-gray-700 group-hover:bg-gray-100' : ''}
+            flex items-center justify-center w-10 h-10 rounded-lg transition-all
+            ${today ? 'bg-gradient-to-br from-blue-600 to-cyan-600 text-white font-bold shadow-lg shadow-blue-500/30' : ''}
+            ${selected && !today ? 'bg-blue-100 text-blue-700 font-semibold' : ''}
+            ${!today && !selected ? 'text-slate-700 group-hover:bg-slate-100' : ''}
           `}>
-            <span className="text-sm">
-              {day}
-            </span>
+            <span className="text-sm">{day}</span>
           </div>
           
-          {/* Appointment indicators - dots below number */}
           {hasAppointments && (
-            <div className="absolute bottom-2 flex gap-1">
-              {dayAppointments.slice(0, 3).map((apt, idx) => (
-                <div
-                  key={idx}
-                  className={`w-1 h-1 rounded-full ${
-                    apt.estado === 'completada' ? 'bg-green-500' :
-                    apt.estado === 'programada' ? 'bg-amber-500' :
-                    'bg-gray-400'
-                  }`}
+            <div className="absolute bottom-1.5 flex gap-1">
+              {confirmedCount > 0 && (
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" 
+                     title={`${confirmedCount} confirmada(s)`}
                 />
-              ))}
+              )}
+              {programmedCount > 0 && (
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500"
+                     title={`${programmedCount} programada(s)`}
+                />
+              )}
+              {dayAppointments.length > 2 && (
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              )}
+            </div>
+          )}
+
+          {dayAppointments.length > 3 && (
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-rose-500 to-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg">
+              {dayAppointments.length}
             </div>
           )}
         </button>
@@ -133,78 +145,73 @@ export default function Calendar({ onDateClick, appointments }: CalendarProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-xl font-bold text-slate-800">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-sm text-slate-500 mt-0.5">
             Selecciona un día para agendar o ver citas
           </p>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <button
             onClick={handlePreviousMonth}
-            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all"
             aria-label="Mes anterior"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="px-3 py-1.5 rounded-md bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors mx-1"
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-semibold hover:shadow-lg hover:scale-105 active:scale-95 transition-all"
           >
             Hoy
           </button>
 
           <button
             onClick={handleNextMonth}
-            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all"
             aria-label="Mes siguiente"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
       </div>
 
-      {/* Calendar body */}
-      <div className="p-4">
-        {/* Day names */}
-        <div className="grid grid-cols-7 mb-2">
+      <div className="p-5">
+        <div className="grid grid-cols-7 mb-3">
           {dayNames.map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
+            <div key={day} className="text-center text-xs font-bold text-slate-600 py-2 uppercase tracking-wider">
               {day}
             </div>
           ))}
         </div>
 
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-0.5">
+        <div className="grid grid-cols-7 gap-1">
           {renderCalendarDays()}
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-4 px-6 py-4 bg-gray-50 border-t border-gray-100">
-        <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-          <span className="text-xs text-gray-600">Completada</span>
+      <div className="flex items-center justify-center gap-6 px-6 py-4 bg-gradient-to-r from-slate-50 to-blue-50 border-t border-slate-200">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div>
+          <span className="text-xs font-medium text-slate-600">Confirmada</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-          <span className="text-xs text-gray-600">Programada</span>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></div>
+          <span className="text-xs font-medium text-slate-600">Programada</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-          <span className="text-xs text-gray-600">Hoy</span>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 shadow-sm"></div>
+          <span className="text-xs font-medium text-slate-600">Hoy</span>
         </div>
       </div>
     </div>

@@ -16,7 +16,6 @@ type Config struct {
 	ServerPort string
 }
 
-// LoadConfig carga las variables de entorno
 func LoadConfig() *Config {
 	return &Config{
 		DBHost:     getEnv("DB_HOST", "localhost"),
@@ -29,9 +28,8 @@ func LoadConfig() *Config {
 	}
 }
 
-// GetDSN retorna el Data Source Name para MySQL
 func (c *Config) GetDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&loc=Local",
 		c.DBUser,
 		c.DBPassword,
 		c.DBHost,

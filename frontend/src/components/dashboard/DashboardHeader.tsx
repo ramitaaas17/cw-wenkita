@@ -7,9 +7,10 @@ import type { Appointment } from '@/src/types';
 
 interface DashboardHeaderProps {
   appointments?: Appointment[];
+  onRefresh?: () => void;
 }
 
-export default function DashboardHeader({ appointments = [] }: DashboardHeaderProps) {
+export default function DashboardHeader({ appointments = [], onRefresh }: DashboardHeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
 
@@ -25,35 +26,56 @@ export default function DashboardHeader({ appointments = [] }: DashboardHeaderPr
     return 'Buenas noches';
   };
 
-  // Calcular estadísticas reales
   const getNextAppointment = () => {
     const now = new Date();
     const upcoming = appointments
       .filter(apt => {
-        const aptDateTime = new Date(apt.fecha_cita + 'T' + apt.hora_cita);
+        // Limpiar fecha antes de combinar
+        const cleanDate = apt.fecha_cita.split('T')[0];
+        const aptDateTime = new Date(cleanDate + 'T' + apt.hora_cita);
+        
         return aptDateTime > now && (apt.estado === 'programada' || apt.estado === 'confirmada');
       })
       .sort((a, b) => {
-        const dateA = new Date(a.fecha_cita + 'T' + a.hora_cita);
-        const dateB = new Date(b.fecha_cita + 'T' + b.hora_cita);
+        // Limpiar fechas antes de combinar
+        const cleanDateA = a.fecha_cita.split('T')[0];
+        const cleanDateB = b.fecha_cita.split('T')[0];
+        const dateA = new Date(cleanDateA + 'T' + a.hora_cita);
+        const dateB = new Date(cleanDateB + 'T' + b.hora_cita);
+        
         return dateA.getTime() - dateB.getTime();
       });
 
     if (upcoming.length === 0) return null;
     
     const next = upcoming[0];
-    const aptDate = new Date(next.fecha_cita + 'T' + next.hora_cita);
+    // Limpiar fecha antes de crear Date
+    const cleanDate = next.fecha_cita.split('T')[0];
+    const aptDate = new Date(cleanDate + 'T' + next.hora_cita);
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const aptDateOnly = new Date(aptDate);
+    const aptDateOnly = new Date(cleanDate + 'T00:00:00');
     aptDateOnly.setHours(0, 0, 0, 0);
     
     const isToday = aptDateOnly.getTime() === today.getTime();
-    const dayLabel = isToday ? 'Hoy' : aptDate.toLocaleDateString('es-MX', { 
-      weekday: 'short', 
-      day: 'numeric', 
-      month: 'short' 
-    });
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = aptDateOnly.getTime() === tomorrow.getTime();
+    
+    let dayLabel;
+    if (isToday) {
+      dayLabel = 'Hoy';
+    } else if (isTomorrow) {
+      dayLabel = 'Mañana';
+    } else {
+      dayLabel = aptDate.toLocaleDateString('es-MX', { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short' 
+      });
+    }
     
     const timeLabel = aptDate.toLocaleTimeString('es-MX', { 
       hour: '2-digit', 
@@ -110,10 +132,10 @@ export default function DashboardHeader({ appointments = [] }: DashboardHeaderPr
   ];
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 text-white">
+    <div className="relative overflow-hidden bg-gradient-to-b from-slate-800 via-blue-900 to-cyan-700 text-white">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-1/2 -right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-1/2 -left-1/4 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl" style={{animationDelay: '700ms'}}></div>
+        <div className="absolute -bottom-1/2 -left-1/4 w-96 h-96 bg-cyan-400/20 rounded-full blur-3xl"></div>
       </div>
 
       <div className="container mx-auto px-4 py-12 relative z-10">
@@ -122,7 +144,7 @@ export default function DashboardHeader({ appointments = [] }: DashboardHeaderPr
             <h1 className="text-4xl md:text-5xl font-bold mb-2">
               {getGreeting()}, {user?.nombre}!
             </h1>
-            <p className="text-blue-50 text-lg font-light">
+            <p className="text-cyan-50 text-lg font-light">
               Tu salud es nuestra prioridad
             </p>
           </div>
@@ -155,11 +177,11 @@ export default function DashboardHeader({ appointments = [] }: DashboardHeaderPr
               <div className="relative flex items-start justify-between">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-                    <p className="text-blue-50 text-sm font-medium uppercase tracking-wide">{stat.title}</p>
+                    <div className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse"></div>
+                    <p className="text-cyan-50 text-sm font-medium uppercase tracking-wide">{stat.title}</p>
                   </div>
                   <p className="text-4xl font-bold">{stat.value}</p>
-                  <p className="text-blue-100 text-sm">{stat.subtitle}</p>
+                  <p className="text-cyan-100 text-sm">{stat.subtitle}</p>
                 </div>
                 <div className="bg-white/20 p-4 rounded-xl group-hover:rotate-12 transition-transform duration-300">
                   {stat.icon}

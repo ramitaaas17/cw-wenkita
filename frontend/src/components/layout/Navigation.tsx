@@ -1,7 +1,7 @@
 // components/layout/Navigation.tsx
 'use client';
 
-import type { NavLink } from '@/types';
+import type { NavLink } from '@/src/types';
 
 interface NavigationProps {
   isScrolled: boolean;
@@ -32,10 +32,10 @@ export default function Navigation({ isScrolled, isMobile = false, onLinkClick }
   };
 
   const linkClassName = isMobile
-    ? 'block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded transition-colors'
+    ? 'block px-4 py-2 text-gray-700 hover:bg-cyan-50 hover:text-cyan-700 rounded transition-colors'
     : `px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
         isScrolled
-          ? 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+          ? 'text-gray-700 hover:bg-cyan-50 hover:text-cyan-700'
           : 'text-white hover:bg-white/10'
       }`;
 

@@ -97,13 +97,8 @@ func (s *AppointmentService) CreateAppointment(userID int, req *models.CreateApp
 		return nil, fmt.Errorf("error al obtener detalles de la cita: %v", err)
 	}
 
-	// Enviar emails de confirmación de forma asíncrona
+	// Enviar emails de confirmación de forma asíncrona ----
 	go func() {
-		// Email al paciente
-		if err := s.emailService.SendAppointmentConfirmationToPatient(appointmentDetails); err != nil {
-			fmt.Printf("Error al enviar email al paciente: %v\n", err)
-		}
-
 		// Email al especialista
 		if err := s.emailService.SendAppointmentNotificationToSpecialist(appointmentDetails); err != nil {
 			fmt.Printf("Error al enviar email al especialista: %v\n", err)
@@ -155,11 +150,6 @@ func (s *AppointmentService) GetAppointmentByID(id int) (*models.AppointmentWith
 	return appointment, nil
 }
 
-// ConfirmAppointment confirma una cita (usado por especialistas)
-func (s *AppointmentService) ConfirmAppointment(id int) error {
-	return s.appointmentRepo.UpdateStatus(id, "confirmada")
-}
-
 // CancelAppointment cancela una cita
 func (s *AppointmentService) CancelAppointment(id int) error {
 	return s.appointmentRepo.Delete(id)
@@ -202,6 +192,40 @@ func (s *AppointmentService) validateAppointmentRequest(req *models.CreateAppoin
 	if err != nil {
 		return fmt.Errorf("formato de hora inválido. Use HH:MM")
 	}
+
+	return nil
+}
+
+// ConfirmAppointment confirma una cita y envía email al paciente
+func (s *AppointmentService) ConfirmAppointment(id int) error {
+	// Primero obtener los detalles de la cita ANTES de confirmar
+	details, err := s.appointmentRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if details == nil {
+		return fmt.Errorf("cita no encontrada")
+	}
+
+	// Confirmar la cita
+	err = s.appointmentRepo.UpdateStatus(id, "confirmada")
+	if err != nil {
+		return err
+	}
+	go func() {
+		// Obtener los detalles actualizados
+		updatedDetails, err := s.appointmentRepo.FindByID(id)
+		if err != nil {
+			fmt.Printf("Error al obtener detalles actualizados: %v\n", err)
+			return
+		}
+
+		// Enviar email de confirmación al paciente
+		if err := s.emailService.SendAppointmentConfirmationToPatient(updatedDetails); err != nil {
+			fmt.Printf("Error al enviar email al paciente: %v\n", err)
+		}
+	}()
 
 	return nil
 }

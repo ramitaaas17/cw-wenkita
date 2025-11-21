@@ -3,8 +3,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -19,7 +21,6 @@ type AppointmentHandler struct {
 	jwtSecret          string
 }
 
-// NewAppointmentHandler crea una nueva instancia del handler
 func NewAppointmentHandler(appointmentService *services.AppointmentService, jwtSecret string) *AppointmentHandler {
 	return &AppointmentHandler{
 		appointmentService: appointmentService,
@@ -27,9 +28,7 @@ func NewAppointmentHandler(appointmentService *services.AppointmentService, jwtS
 	}
 }
 
-// CreateAppointment maneja la creación de una nueva cita
 func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
-	// Obtener usuario autenticado del token
 	userID, err := h.getUserIDFromToken(r)
 	if err != nil {
 		log.Printf("Error de autenticación: %v", err)
@@ -39,7 +38,6 @@ func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Re
 
 	log.Printf("Usuario autenticado: %d", userID)
 
-	// Parsear el request body
 	var req models.CreateAppointmentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Error al decodificar request: %v", err)
@@ -49,12 +47,10 @@ func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Re
 
 	log.Printf("Request recibido: %+v", req)
 
-	// Crear la cita
 	appointment, err := h.appointmentService.CreateAppointment(userID, &req)
 	if err != nil {
 		log.Printf("Error al crear cita: %v", err)
 
-		// Errores de validación o disponibilidad
 		if strings.Contains(err.Error(), "disponible") ||
 			strings.Contains(err.Error(), "requerido") ||
 			strings.Contains(err.Error(), "inválido") ||
@@ -64,7 +60,6 @@ func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		// Errores de servidor
 		respondWithError(w, http.StatusInternalServerError, "Error al crear la cita")
 		return
 	}
@@ -73,9 +68,7 @@ func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Re
 	respondWithJSON(w, http.StatusCreated, appointment)
 }
 
-// GetAppointments obtiene todas las citas del usuario autenticado
 func (h *AppointmentHandler) GetAppointments(w http.ResponseWriter, r *http.Request) {
-	// Obtener usuario autenticado
 	userID, err := h.getUserIDFromToken(r)
 	if err != nil {
 		log.Printf("Error de autenticación en GetAppointments: %v", err)
@@ -85,7 +78,6 @@ func (h *AppointmentHandler) GetAppointments(w http.ResponseWriter, r *http.Requ
 
 	log.Printf("Obteniendo citas para usuario: %d", userID)
 
-	// Obtener citas
 	appointments, err := h.appointmentService.GetUserAppointments(userID)
 	if err != nil {
 		log.Printf("Error al obtener citas: %v", err)
@@ -97,16 +89,8 @@ func (h *AppointmentHandler) GetAppointments(w http.ResponseWriter, r *http.Requ
 	respondWithJSON(w, http.StatusOK, appointments)
 }
 
-// GetAppointmentByID obtiene una cita específica por su ID
 func (h *AppointmentHandler) GetAppointmentByID(w http.ResponseWriter, r *http.Request) {
-	// Verificar autenticación
-	_, err := h.getUserIDFromToken(r)
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "No autorizado")
-		return
-	}
-
-	// Obtener ID de la cita
+	// NO requiere autenticación para que el especialista pueda ver los detalles
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	id, err := strconv.Atoi(idStr)
@@ -115,7 +99,6 @@ func (h *AppointmentHandler) GetAppointmentByID(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Obtener cita
 	appointment, err := h.appointmentService.GetAppointmentByID(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "no encontrada") {
@@ -129,9 +112,8 @@ func (h *AppointmentHandler) GetAppointmentByID(w http.ResponseWriter, r *http.R
 	respondWithJSON(w, http.StatusOK, appointment)
 }
 
-// ConfirmAppointment confirma una cita (usado por especialistas)
+// ConfirmAppointment confirma una cita (usado por especialistas desde email)
 func (h *AppointmentHandler) ConfirmAppointment(w http.ResponseWriter, r *http.Request) {
-	// Obtener ID de la cita
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	id, err := strconv.Atoi(idStr)
@@ -140,28 +122,48 @@ func (h *AppointmentHandler) ConfirmAppointment(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	log.Printf("Confirmando cita ID: %d", id)
+
 	// Confirmar cita
 	err = h.appointmentService.ConfirmAppointment(id)
 	if err != nil {
+		log.Printf("Error al confirmar cita %d: %v", id, err)
+
+		// Si es GET (desde email), redirigir con error
+		if r.Method == http.MethodGet {
+			frontendURL := getEnvOrDefault("FRONTEND_URL", "http://localhost:3000")
+			// 👇 CAMBIO AQUÍ - Nueva ruta
+			http.Redirect(w, r, fmt.Sprintf("%s/confirm-appointment/confirm/%d?error=true", frontendURL, id), http.StatusSeeOther)
+			return
+		}
+
 		respondWithError(w, http.StatusInternalServerError, "Error al confirmar la cita")
 		return
 	}
 
+	log.Printf("Cita %d confirmada exitosamente", id)
+
+	// Si es una petición GET (desde el email), redirigir al frontend
+	if r.Method == http.MethodGet {
+		frontendURL := getEnvOrDefault("FRONTEND_URL", "http://localhost:3000")
+		// 👇 CAMBIO AQUÍ - Nueva ruta
+		http.Redirect(w, r, fmt.Sprintf("%s/confirm-appointment/confirm/%d", frontendURL, id), http.StatusSeeOther)
+		return
+	}
+
+	// Si es POST/PUT (desde la API), retornar JSON
 	respondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Cita confirmada exitosamente",
 	})
 }
 
-// CancelAppointment cancela una cita
 func (h *AppointmentHandler) CancelAppointment(w http.ResponseWriter, r *http.Request) {
-	// Verificar autenticación
 	_, err := h.getUserIDFromToken(r)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "No autorizado")
 		return
 	}
 
-	// Obtener ID de la cita
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	id, err := strconv.Atoi(idStr)
@@ -170,7 +172,6 @@ func (h *AppointmentHandler) CancelAppointment(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Cancelar cita
 	err = h.appointmentService.CancelAppointment(id)
 	if err != nil {
 		log.Printf("Error al cancelar cita %d: %v", id, err)
@@ -184,25 +185,28 @@ func (h *AppointmentHandler) CancelAppointment(w http.ResponseWriter, r *http.Re
 	})
 }
 
-// getUserIDFromToken extrae el ID del usuario del token JWT
 func (h *AppointmentHandler) getUserIDFromToken(r *http.Request) (int, error) {
-	// Obtener token del header
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return 0, http.ErrNoCookie
+		return 0, fmt.Errorf("no authorization header")
 	}
 
-	// Extraer token (formato: "Bearer TOKEN")
 	tokenParts := strings.Split(authHeader, " ")
 	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-		return 0, http.ErrNoCookie
+		return 0, fmt.Errorf("invalid authorization format")
 	}
 
-	// Validar token
 	claims, err := utils.ValidateToken(tokenParts[1], h.jwtSecret)
 	if err != nil {
 		return 0, err
 	}
 
 	return claims.UserID, nil
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

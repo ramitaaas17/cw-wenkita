@@ -1,5 +1,5 @@
-
-import { useState, useCallback } from 'react';
+// hooks/useAppointments.ts
+import { useState, useCallback, useEffect } from 'react';
 import { appointmentService } from '@/src/services/appointmentService';
 import type { Appointment, CreateAppointmentRequest } from '@/src/types';
 
@@ -23,46 +23,61 @@ export function useAppointments() {
     }
   }, []);
 
+  // Cargar citas al montar el componente
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
+
   const createAppointment = useCallback(async (appointmentData: CreateAppointmentRequest) => {
     setError('');
     try {
-      const data = await appointmentService.createAppointment(appointmentData);
-      setAppointments(prev => [...prev, data]);
-      return data;
+      await appointmentService.createAppointment(appointmentData);
+      // Recargar todas las citas después de crear
+      fetchAppointments();
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : 'No se pudo crear la cita';
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [fetchAppointments]);
 
   const cancelAppointment = useCallback(async (id: number) => {
     setError('');
     try {
       await appointmentService.cancelAppointment(id);
-      setAppointments(prev => prev.filter(apt => apt.id !== id));
+      // Actualizar el estado local inmediatamente
+      setAppointments(prev =>
+        prev.map(apt =>
+          apt.id === id ? { ...apt, estado: 'cancelada' } : apt
+        )
+      );
+      // Recargar para asegurar sincronización
+      await fetchAppointments();
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : 'No se pudo cancelar la cita';
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [fetchAppointments]);
 
   const confirmAppointment = useCallback(async (id: number) => {
     setError('');
     try {
       await appointmentService.confirmAppointment(id);
+      // Actualizar el estado local inmediatamente
       setAppointments(prev =>
         prev.map(apt =>
           apt.id === id ? { ...apt, estado: 'confirmada' } : apt
         )
       );
+      // Recargar para asegurar sincronización
+      await fetchAppointments();
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : 'No se pudo confirmar la cita';
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [fetchAppointments]);
 
   return {
     appointments,

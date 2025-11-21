@@ -6,12 +6,12 @@ import { services } from '@/src/constants/services';
 
 export default function Services() {
   return (
-    <section className="py-20 bg-linear-to-b from-gray-50 to-white relative overflow-hidden">
+    <section className="py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
       {/* Decoración de fondo */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-96 h-96 bg-purple-200 rounded-full blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-pink-200 rounded-full blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-200 rounded-full blur-3xl opacity-20 animate-blob"></div>
+        <div className="absolute top-40 right-10 w-96 h-96 bg-blue-200 rounded-full blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-slate-200 rounded-full blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -19,7 +19,7 @@ export default function Services() {
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Nuestros{' '}
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-purple-600">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-700 to-cyan-600">
               Servicios
             </span>
           </h2>
@@ -29,9 +29,9 @@ export default function Services() {
           
           {/* Línea decorativa */}
           <div className="flex items-center justify-center mt-6">
-            <div className="h-1 w-20 bg-linear-to-r from-blue-600 to-purple-600 rounded-full"></div>
-            <div className="h-2 w-2 bg-purple-600 rounded-full mx-2"></div>
-            <div className="h-1 w-20 bg-linear-to-r from-purple-600 to-pink-600 rounded-full"></div>
+            <div className="h-1 w-20 bg-gradient-to-r from-slate-700 to-blue-600 rounded-full"></div>
+            <div className="h-2 w-2 bg-cyan-600 rounded-full mx-2"></div>
+            <div className="h-1 w-20 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-full"></div>
           </div>
         </div>
 
@@ -49,7 +49,7 @@ export default function Services() {
           </p>
           <a
             href="#contacto"
-            className="inline-flex items-center px-8 py-4 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-slate-700 to-cyan-600 text-white rounded-lg font-semibold text-lg hover:from-slate-800 hover:to-cyan-700 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
           >
             Contáctanos ahora
             <svg

@@ -36,9 +36,9 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-linear-to-b from-gray-900 to-black text-white relative overflow-hidden">
+    <footer className="bg-gradient-to-b from-slate-900 to-black text-white relative overflow-hidden">
       {/* Decoración superior */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-blue-600 via-purple-600 to-pink-600"></div>
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-700 via-blue-600 to-cyan-600"></div>
       
       {/* Patrón de fondo */}
       <div className="absolute inset-0 opacity-5">
@@ -52,7 +52,7 @@ export default function Footer() {
           {/* Columna 1: Información de la clínica */}
           <div className="lg:col-span-1">
             <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-cyan-600 rounded-lg flex items-center justify-center mr-3">
                 <Heart className="w-6 h-6 text-white" fill="currentColor" />
               </div>
               <h3 className="text-2xl font-bold">Clínica Wenka</h3>
@@ -127,16 +127,16 @@ export default function Footer() {
             </ul>
 
             {/* Newsletter */}
-            <div className="bg-linear-to-br from-blue-900/50 to-purple-900/50 p-4 rounded-lg border border-gray-800">
+            <div className="bg-gradient-to-br from-slate-800/50 to-blue-900/50 p-4 rounded-lg border border-gray-800">
               <h5 className="text-sm font-semibold mb-2">Newsletter</h5>
               <p className="text-xs text-gray-400 mb-3">Recibe noticias y promociones</p>
               <div className="flex">
                 <input
                   type="email"
                   placeholder="Tu email"
-                  className="flex-1 px-3 py-2 bg-gray-800 text-white text-sm rounded-l-lg border border-gray-700 focus:outline-none focus:border-blue-600"
+                  className="flex-1 px-3 py-2 bg-gray-800 text-white text-sm rounded-l-lg border border-gray-700 focus:outline-none focus:border-cyan-600"
                 />
-                <button className="px-4 py-2 bg-linear-to-r from-blue-600 to-purple-600 rounded-r-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300">
+                <button className="px-4 py-2 bg-gradient-to-r from-slate-700 to-cyan-600 rounded-r-lg hover:from-slate-800 hover:to-cyan-700 transition-all duration-300">
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -170,8 +170,8 @@ export default function Footer() {
       </div>
 
       {/* Elementos decorativos */}
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mb-32 -ml-32"></div>
-      <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl -mt-32 -mr-32"></div>
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl -mb-32 -ml-32"></div>
+      <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mt-32 -mr-32"></div>
     </footer>
   );
 }

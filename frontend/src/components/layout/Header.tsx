@@ -59,7 +59,7 @@ export default function Header() {
             <div className="flex items-center">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-3 ${
                 isScrolled 
-                  ? 'bg-gradient-to-br from-blue-600 to-purple-600' 
+                  ? 'bg-gradient-to-br from-slate-700 to-cyan-600' 
                   : 'bg-white/20 backdrop-blur-sm'
               }`}>
                 <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -68,7 +68,7 @@ export default function Header() {
               </div>
               <h2
                 className={`text-2xl font-bold transition-colors duration-300 ${
-                  isScrolled ? 'text-blue-700' : 'text-white'
+                  isScrolled ? 'text-slate-800' : 'text-white'
                 }`}
               >
                 Clínica Wenka
@@ -85,7 +85,7 @@ export default function Header() {
                     onClick={handleDashboardClick}
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
                       isScrolled
-                        ? 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                        ? 'text-gray-700 hover:bg-cyan-50 hover:text-cyan-700'
                         : 'text-white hover:bg-white/10'
                     }`}
                   >
@@ -108,7 +108,7 @@ export default function Header() {
                     onClick={handleLoginClick}
                     className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-300 ${
                       isScrolled
-                        ? 'text-blue-700 hover:bg-blue-50'
+                        ? 'text-slate-700 hover:bg-cyan-50'
                         : 'text-white hover:bg-white/10'
                     }`}
                   >
@@ -118,8 +118,8 @@ export default function Header() {
                     onClick={handleRegisterClick}
                     className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 ${
                       isScrolled
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md hover:shadow-lg'
-                        : 'bg-white text-blue-700 hover:shadow-xl'
+                        ? 'bg-gradient-to-r from-slate-700 to-cyan-600 text-white shadow-md hover:shadow-lg'
+                        : 'bg-white text-slate-800 hover:shadow-xl'
                     }`}
                   >
                     Registrarse
@@ -132,7 +132,7 @@ export default function Header() {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className={`md:hidden p-2 rounded-lg transition-colors ${
-                isScrolled ? 'text-blue-700' : 'text-white'
+                isScrolled ? 'text-slate-700' : 'text-white'
               }`}
               aria-label="Toggle menu"
             >
@@ -172,7 +172,7 @@ export default function Header() {
                         handleDashboardClick();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full px-4 py-3 text-left text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium"
+                      className="w-full px-4 py-3 text-left text-gray-700 hover:bg-cyan-50 hover:text-cyan-700 rounded-lg transition-colors font-medium"
                     >
                       Mi Panel
                     </button>
@@ -193,7 +193,7 @@ export default function Header() {
                         handleLoginClick();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full px-4 py-3 text-left text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium"
+                      className="w-full px-4 py-3 text-left text-gray-700 hover:bg-cyan-50 hover:text-cyan-700 rounded-lg transition-colors font-medium"
                     >
                       Iniciar Sesión
                     </button>
@@ -202,7 +202,7 @@ export default function Header() {
                         handleRegisterClick();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                      className="w-full px-4 py-3 bg-gradient-to-r from-slate-700 to-cyan-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
                     >
                       Registrarse
                     </button>
